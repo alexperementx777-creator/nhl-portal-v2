@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NHL Portal v2.0</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #eee; margin: 0; padding: 20px; }
+    h1 { color: #00ff9d; text-align: center; }
+    .tabs { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .tab { padding: 12px 24px; background: #1a1a1a; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .tab.active { background: #00ff9d; color: #000; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #111; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+    th { background: #1a1a1a; }
+    .green { color: #00ff9d; }
+    .red { color: #ff3b5c; }
+    input, button { padding: 12px; margin: 8px 0; width: 100%; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>NHL Portal v2.0 — Adaptive Hybrid</h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab(0)">Добавить матч</button>
+    <button class="tab" onclick="showTab(1)">Сегодня</button>
+    <button class="tab" onclick="showTab(2)">Архив</button>
+    <button class="tab" onclick="showTab(3)">Статистика</button>
+  </div>
+
+  <!-- Tab 0: Добавить матч -->
+  <div id="tab0">
+    <h2>Добавить матч</h2>
+    <input id="match" placeholder="Матч (например: Vegas @ Buffalo)">
+    <input id="prediction" placeholder="Прогноз (МЕНЬШЕ 4.5)">
+    <button onclick="analyzeMatch()">Анализировать</button>
+  </div>
+
+  <!-- Tab 1: Сегодня -->
+  <div id="tab1" style="display:none;">
+    <h2>Матчи сегодня</h2>
+    <table id="todayTable"></table>
+  </div>
+
+  <!-- Tab 2: Архив -->
+  <div id="tab2" style="display:none;">
+    <h2>Архив прогнозов</h2>
+    <table id="archiveTable"></table>
+  </div>
+
+  <!-- Tab 3: Статистика -->
+  <div id="tab3" style="display:none;">
+    <h2>Статистика системы</h2>
+    <canvas id="winrateChart" height="240"></canvas>
+  </div>
+
+  <script>
+    const API = "https://твой-сервер.onrender.com";   // ← ПОМЕНЯЙ НА СВОЙ URL ПОСЛЕ ДЕПЛОЯ
+
+    async function analyzeMatch() {
+      const match = document.getElementById('match').value.trim();
+      const prediction = document.getElementById('prediction').value.trim();
+      if (!match || !prediction) return alert("Заполни оба поля");
+
+      const res = await fetch(`${API}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ match, prediction })
+      });
+      const data = await res.json();
+      alert(`Прогноз сохранён!\nВероятность: ${data.probability}`);
+      loadArchive();
+    }
+
+    async function loadToday() {
+      const res = await fetch(`${API}/today`);
+      const games = await res.json();
+      const table = document.getElementById('todayTable');
+      table.innerHTML = `<tr><th>Матч</th><th>Время</th></tr>`;
+      games.forEach(g => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${g.match}</td><td>${g.time}</td>`;
+        table.appendChild(tr);
+      });
+    }
+
+    async function loadArchive() {
+      const res = await fetch(`${API}/archive`);
+      const data = await res.json();
+      const table = document.getElementById('archiveTable');
+      table.innerHTML = `<tr><th>Дата</th><th>Матч</th><th>Прогноз</th><th>Вероятность</th><th>Результат</th></tr>`;
+      data.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${item.date}</td><td>${item.match}</td><td>${item.prediction}</td><td>${item.probability}</td><td class="${item.result === '✅' ? 'green' : 'red'}">${item.result}</td>`;
+        table.appendChild(tr);
+      });
+    }
+
+    function showTab(n) {
+      document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===n));
+      document.getElementById('tab0').style.display = n===0 ? 'block' : 'none';
+      document.getElementById('tab1').style.display = n===1 ? 'block' : 'none';
+      document.getElementById('tab2').style.display = n===2 ? 'block' : 'none';
+      document.getElementById('tab3').style.display = n===3 ? 'block' : 'none';
+
+      if (n === 1) loadToday();
+      if (n === 2) loadArchive();
+    }
+
+    // Запуск
+    showTab(0);
+  </script>
+</body>
+</html>
